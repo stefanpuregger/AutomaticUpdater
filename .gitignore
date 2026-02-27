@@ -1,0 +1,18 @@
+# Build output
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+.vs/
+
+# Rider/JetBrains
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code session data
+.claude/
