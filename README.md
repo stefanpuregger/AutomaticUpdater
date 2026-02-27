@@ -85,6 +85,10 @@ The update log is stored at `%AppData%\AutomaticUpdater\update.log` and is autom
 - Captures stdout and stderr in real time and streams them to the log file and log window
 - Autostart is implemented via `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
 
+## License
+
+MIT © 2026 Stefan Puregger
+
 ## Project Structure
 
 ```
