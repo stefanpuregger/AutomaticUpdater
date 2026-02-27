@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using AutomaticUpdater.Models;
 
@@ -15,6 +17,11 @@ public class UpdaterService
     public event EventHandler<string>? LogLineAdded;
 
     public bool IsRunning => _isRunning;
+
+    // Matches spinner frames and progress bar lines winget emits during downloads/installs
+    private static readonly Regex _noisePattern = new(
+        @"^\s*([-\\|/]|[█░▒▓]+.*|.*[█░▒▓]+.*%.*)\s*$",
+        RegexOptions.Compiled);
 
     public UpdaterService(SettingsService settingsService, AppSettings settings)
     {
@@ -46,7 +53,9 @@ public class UpdaterService
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
-                CreateNoWindow = true
+                CreateNoWindow = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8
             };
 
             using var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
@@ -91,7 +100,14 @@ public class UpdaterService
 
     private void AppendLine(string line)
     {
+        if (IsNoiseLine(line)) return;
         _settingsService.AppendLogLine(line, _settings.LogMaxLines);
         LogLineAdded?.Invoke(this, line);
+    }
+
+    private static bool IsNoiseLine(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) return true;
+        return _noisePattern.IsMatch(line);
     }
 }
