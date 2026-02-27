@@ -37,7 +37,12 @@ The executable will be at `bin\Release\net8.0-windows\AutomaticUpdater.exe`.
 
 ### Option B — Download release
 
-Download the latest `AutomaticUpdater.exe` from the [Releases](https://github.com/stefanpuregger/AutomaticUpdater/releases) page and run it.
+Download from the [Releases](https://github.com/stefanpuregger/AutomaticUpdater/releases) page:
+
+| File | Size | Requirements |
+|------|------|--------------|
+| `AutomaticUpdater.exe` | ~188 KB | [.NET 8 Desktop Runtime](https://aka.ms/dotnet-download) required |
+| `AutomaticUpdater-standalone.exe` | ~65 MB | No dependencies — just run it |
 
 ## Usage
 
