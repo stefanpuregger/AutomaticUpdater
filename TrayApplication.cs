@@ -1,5 +1,7 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows.Forms;
 using AutomaticUpdater.Models;
 using AutomaticUpdater.Services;
@@ -28,7 +30,11 @@ public class TrayApplication : IDisposable
 
     private SettingsWindow? _settingsWindow;
     private LogWindow? _logWindow;
+    private CancellationTokenSource? _cts;
     private bool _disposed;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool DestroyIcon(IntPtr hIcon);
 
     public void Initialize()
     {
@@ -38,8 +44,9 @@ public class TrayApplication : IDisposable
         Settings = SettingsService.Load();
 
         AutostartService = new AutostartService();
+        _cts = new CancellationTokenSource();
         UpdaterService = new UpdaterService(SettingsService, Settings);
-        SchedulerService = new SchedulerService(UpdaterService, Settings);
+        SchedulerService = new SchedulerService(UpdaterService, Settings, _cts);
 
         UpdaterService.UpdateStarted += OnUpdateStarted;
         UpdaterService.UpdateCompleted += OnUpdateCompleted;
@@ -72,7 +79,7 @@ public class TrayApplication : IDisposable
 
         // Run Now
         _runNowItem = new ToolStripMenuItem("Run Now");
-        _runNowItem.Click += async (_, _) => await UpdaterService.RunUpdateAsync();
+        _runNowItem.Click += async (_, _) => await UpdaterService.RunUpdateAsync(_cts!.Token);
 
         // Settings
         var settingsItem = new ToolStripMenuItem("Settings…");
@@ -151,7 +158,10 @@ public class TrayApplication : IDisposable
         g.FillPolygon(arrowBrush, arrowPoints);
 
         IntPtr hIcon = bitmap.GetHicon();
-        return Icon.FromHandle(hIcon);
+        var icon = (Icon)Icon.FromHandle(hIcon).Clone();
+        DestroyIcon(hIcon);
+        bitmap.Dispose();
+        return icon;
     }
 
     private void OnUpdateStarted(object? sender, EventArgs e)
@@ -272,6 +282,8 @@ public class TrayApplication : IDisposable
     {
         if (!_disposed)
         {
+            _cts?.Cancel();
+            _cts?.Dispose();
             SchedulerService?.Dispose();
             _notifyIcon?.Dispose();
             _trayIcon?.Dispose();

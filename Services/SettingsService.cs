@@ -61,14 +61,13 @@ public class SettingsService
         }
     }
 
-    public void AppendLogLine(string line, int maxLines)
+    public void AppendLogLine(string line)
     {
         EnsureDirectoryExists();
 
         try
         {
             File.AppendAllText(LogFilePath, line + Environment.NewLine);
-            TrimLog(maxLines);
         }
         catch
         {
@@ -76,16 +75,11 @@ public class SettingsService
         }
     }
 
-    public void ClearLog()
-    {
-        if (File.Exists(LogFilePath))
-            File.Delete(LogFilePath);
-    }
-
-    private void TrimLog(int maxLines)
+    public void TrimLog(int maxLines)
     {
         try
         {
+            if (!File.Exists(LogFilePath)) return;
             var lines = File.ReadAllLines(LogFilePath);
             if (lines.Length > maxLines)
             {
@@ -97,6 +91,12 @@ public class SettingsService
         {
             // Best-effort
         }
+    }
+
+    public void ClearLog()
+    {
+        if (File.Exists(LogFilePath))
+            File.Delete(LogFilePath);
     }
 
     private static void EnsureDirectoryExists()

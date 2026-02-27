@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -10,13 +11,13 @@ public class UpdaterService
 {
     private readonly SettingsService _settingsService;
     private AppSettings _settings;
-    private volatile bool _isRunning;
+    private int _isRunning;
 
     public event EventHandler? UpdateStarted;
     public event EventHandler? UpdateCompleted;
     public event EventHandler<string>? LogLineAdded;
 
-    public bool IsRunning => _isRunning;
+    public bool IsRunning => _isRunning == 1;
 
     // Matches spinner frames and progress bar lines winget emits during downloads/installs
     private static readonly Regex _noisePattern = new(
@@ -36,13 +37,10 @@ public class UpdaterService
 
     public async Task RunUpdateAsync(CancellationToken cancellationToken = default)
     {
-        if (_isRunning) return;
-        _isRunning = true;
+        if (Interlocked.CompareExchange(ref _isRunning, 1, 0) != 0) return;
 
         UpdateStarted?.Invoke(this, EventArgs.Empty);
-
-        string startLine = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] === Starting winget upgrade ===";
-        AppendLine(startLine);
+        AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] === Starting winget upgrade ===");
 
         try
         {
@@ -78,12 +76,15 @@ public class UpdaterService
 
             await process.WaitForExitAsync(cancellationToken);
 
-            string endLine = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] === winget exited with code {process.ExitCode} ===";
-            AppendLine(endLine);
+            AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] === winget exited with code {process.ExitCode} ===");
         }
         catch (OperationCanceledException)
         {
             AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] === Update cancelled ===");
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == 2) // ERROR_FILE_NOT_FOUND
+        {
+            AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [ERROR] winget not found. Install App Installer from the Microsoft Store.");
         }
         catch (Exception ex)
         {
@@ -93,7 +94,8 @@ public class UpdaterService
         {
             _settings.LastRunUtc = DateTime.UtcNow;
             _settingsService.Save(_settings);
-            _isRunning = false;
+            _settingsService.TrimLog(_settings.LogMaxLines);
+            Interlocked.Exchange(ref _isRunning, 0);
             UpdateCompleted?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -101,7 +103,7 @@ public class UpdaterService
     private void AppendLine(string line)
     {
         if (IsNoiseLine(line)) return;
-        _settingsService.AppendLogLine(line, _settings.LogMaxLines);
+        _settingsService.AppendLogLine(line);
         LogLineAdded?.Invoke(this, line);
     }
 

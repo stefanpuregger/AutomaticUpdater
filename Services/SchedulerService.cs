@@ -6,6 +6,7 @@ namespace AutomaticUpdater.Services;
 public class SchedulerService : IDisposable
 {
     private readonly UpdaterService _updaterService;
+    private readonly CancellationTokenSource _cts;
     private AppSettings _settings;
     private System.Threading.Timer? _timer;
     private bool _disposed;
@@ -14,10 +15,11 @@ public class SchedulerService : IDisposable
 
     public DateTime? NextRunTime { get; private set; }
 
-    public SchedulerService(UpdaterService updaterService, AppSettings settings)
+    public SchedulerService(UpdaterService updaterService, AppSettings settings, CancellationTokenSource cts)
     {
         _updaterService = updaterService;
         _settings = settings;
+        _cts = cts;
     }
 
     public void UpdateSettings(AppSettings settings)
@@ -56,8 +58,19 @@ public class SchedulerService : IDisposable
 
     private async void OnTimerFired(object? state)
     {
-        await _updaterService.RunUpdateAsync();
-        Reschedule();
+        try
+        {
+            await _updaterService.RunUpdateAsync(_cts.Token);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Scheduler] Unhandled exception in timer: {ex.Message}");
+        }
+        finally
+        {
+            if (!_cts.IsCancellationRequested)
+                Reschedule();
+        }
     }
 
     private static DateTime? CalculateNextRun(UpdateSchedule schedule)
