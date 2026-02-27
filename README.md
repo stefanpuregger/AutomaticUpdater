@@ -103,6 +103,3 @@ AutomaticUpdater/
     └── LogWindow.xaml/.cs         Live log viewer
 ```
 
-## License
-
-MIT
